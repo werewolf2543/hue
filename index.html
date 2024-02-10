@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Harshit Game</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: white; /* Set background color to white */
+        color: black; /* Set text color to black */
+        font-family: Arial, sans-serif;
+        overflow: hidden; /* Prevent scrolling during screen vibration */
+    }
+    canvas {
+        display: none; /* Hide canvas initially */
+    }
+    #startButton {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px 40px;
+        font-size: 24px;
+        background-color: black; /* Change button background color to black */
+        color: white; /* Change button text color to white */
+        border: none;
+        cursor: pointer;
+        outline: none;
+        border-radius: 20px; /* Apply border-radius for rounded corners */
+        transition: background-color 0.3s ease; /* Add transition effect */
+    }
+    #startButton:hover {
+        background-color: lightgray; /* Change background color on hover */
+    }
+    .messageContainer {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+    #coolImg {
+        width: 200px; /* Adjust size of the PNG image */
+        height: auto;
+    }
+    #nahTooBig, #tryNow {
+        font-size: 60px; /* Increase the font size of the red text */
+        color: red; /* Change text color to red */
+    }
+    #scoreAndChances {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        font-size: 24px;
+    }
+    .heart {
+        font-size: 30px; /* Increase the font size of the red hearts */
+    }
+    #instructions {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 24px;
+    }
+    h1 {
+        text-align: center;
+        font-size: 48px; /* Increase the font size of the title */
+    }
+</style>
+</head>
+<body>
+<h1>The Harshit Game</h1>
+<button id="startButton">Start Game</button>
+<canvas id="gameCanvas"></canvas>
+<div class="messageContainer">
+    <img id="coolImg" src="cool.png" alt="Cool Image">
+    <div id="nahTooBig">nah too big</div>
+</div>
+<div id="tryNowContainer" class="messageContainer">
+    <div id="tryNow">try now :)</div>
+</div>
+<div id="scoreAndChances">
+    Score: <span id="score">0</span><br>
+    Chances: <span id="chances" class="heart">&hearts;&hearts;&hearts;</span>
+</div>
+<div id="instructions">Aim and shoot the black ball</div>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const coolImg = document.getElementById('coolImg');
+    const nahTooBig = document.getElementById('nahTooBig');
+    const tryNowContainer = document.getElementById('tryNowContainer');
+    const tryNow = document.getElementById('tryNow');
+    const startButton = document.getElementById('startButton');
+    const scoreElement = document.getElementById('score'); // Define scoreElement
+    const chancesElement = document.getElementById('chances');
+    const messageContainer = document.querySelector('.messageContainer');
+    
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let targetX = canvas.width - 100;
+    let targetY = Math.random() * (canvas.height - 200) + 100; // Adjusted range for target spawn
+    let ballX = 100; // Adjusted initial position of the ball
+    let ballY = canvas.height / 2 - 50; // Adjusted initial position along the y-axis
+    let isShot = false;
+    let score = 0;
+    let angle = 45; // Default angle
+    let ballSpeed = 10;
+    let targetRadius = 100; // Increased target radius
+    let aimLength = 100; // Length of the aiming arrow
+    let hitFirstTime = false;
+    let chancesLeft = 3;
+    let particles = []; // Array to store particle objects
+    let explosionSize = 20; // Size of explosion effect
+    let explosionSpeed = 2; // Speed of particles in the explosion
+    let explosionParticles = 30; // Number of particles in the explosion
+
+    function draw() {
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw target
+        ctx.fillStyle = 'black'; // Change color to black
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, targetRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw ball
+        if (isShot) {
+            ballX += Math.cos(angle * Math.PI / 180) * ballSpeed;
+            ballY -= Math.sin(angle * Math.PI / 180) * ballSpeed;
+            ctx.fillStyle = 'black'; // Change color to black
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, 10, 0, Math.PI * 2); // Adjust radius for the ball
+            ctx.fill();
+        } else {
+            ballX = 100;
+            ballY = canvas.height / 2 - 50; // Adjusted initial position along the y-axis
+            ctx.fillStyle = 'black'; // Change color to black
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, 10, 0, Math.PI * 2); // Adjust radius for the ball
+            ctx.fill();
+
+            // Draw aiming line (dotted)
+            ctx.strokeStyle = 'black'; // Change color to black
+            ctx.setLineDash([5, 15]); // Set line dash pattern
+            ctx.beginPath();
+            ctx.moveTo(ballX, ballY);
+            const endX = ballX + Math.cos(angle * Math.PI / 180) * aimLength;
+            const endY = ballY - Math.sin(angle * Math.PI / 180) * aimLength;
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash pattern
+        }
+
+        // Draw particles
+        for (let i = 0; i < particles.length; i++) {
+            ctx.fillStyle = 'black'; // Change color to black
+            ctx.fillRect(particles[i].x, particles[i].y, 2, 2); // Draw particles
+            particles[i].x += particles[i].vx;
+            particles[i].y += particles[i].vy;
+            particles[i].alpha -= 0.02; // Reduce alpha value to simulate fading
+            ctx.globalAlpha = particles[i].alpha;
+            ctx.fill();
+            ctx.globalAlpha = 1; // Reset global alpha
+        }
+
+        // Remove faded out particles
+        particles = particles.filter(p => p.alpha > 0);
+    }
+
+    function update() {
+        if (!hitFirstTime && isShot && Math.sqrt((ballX - targetX) ** 2 + (ballY - targetY) ** 2) <= targetRadius) {
+            hitFirstTime = true;
+            score++;
+            scoreElement.textContent = score; // Update the score
+            targetX = canvas.width - 100;
+            targetY = Math.random() * (canvas.height - 200) + 100; // Adjusted range for target spawn
+            isShot = false;
+            createExplosion(ballX, ballY); // Create explosion effect at impact point
+            messageContainer.style.display = 'block'; // Show the message container
+            
+            // Hide the message container after 2 seconds
+            setTimeout(function() {
+                messageContainer.style.display = 'none';
+                // Show "try now :)" text after the previous message container disappears
+                tryNowContainer.style.display = 'block';
+                // Hide "try now :)" text after 1 second
+                setTimeout(function() {
+                    tryNowContainer.style.display = 'none';
+                }, 1000);
+            }, 2000);
+            
+            // Make the red ball very small after the message container disappears
+            setTimeout(function() {
+                shrinkBall(); // Shrink the ball gradually
+                hitFirstTime = false; // Reset the flag when the ball shrinks
+            }, 1500); // Half a second before hiding the message container
+        }
+        if (isShot && Math.sqrt((ballX - targetX) ** 2 + (ballY - targetY) ** 2) <= targetRadius) {
+            score++;
+            scoreElement.textContent = score; // Update the score
+            targetX = canvas.width - 100;
+            targetY = Math.random() * (canvas.height - 200) + 100; // Adjusted range for target spawn
+            isShot = false;
+        }
+        if (ballX >= canvas.width || ballY >= canvas.height || ballY <= 0) {
+            isShot = false;
+            if (!hitFirstTime) {
+                chancesLeft--;
+                updateChancesDisplay(); // Update the display of remaining chances
+                if (chancesLeft <= 0) {
+                    // Game over condition
+                    messageContainer.innerHTML = '<img id="coolImg" src="cool.png" alt="Cool Image"><div id="nahTooBig">Haha lost! Now get back to work, chigga</div>';
+                    messageContainer.style.display = 'block'; // Show the message container
+                    setTimeout(function() {
+                        alert("Game over! Your score: " + score);
+                        document.location.reload();
+                    }, 2000); // Show for 2 seconds before reloading the page
+                }
+            }
+        }
+    }
+
+    function gameLoop() {
+        draw();
+        update();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+        startButton.style.display = 'none'; // Hide the start button
+        canvas.style.display = 'block'; // Show the canvas
+        gameLoop(); // Start the game loop
+    }
+
+    function createExplosion(x, y) {
+        for (let i = 0; i < explosionParticles; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let vx = Math.cos(angle) * explosionSpeed;
+            let vy = Math.sin(angle) * explosionSpeed;
+            particles.push({x: x, y: y, vx: vx, vy: vy, alpha: 1});
+        }
+    }
+
+    function shrinkBall() {
+        let shrinkInterval = setInterval(function() {
+            targetRadius -= 1; // Reduce the ball size gradually
+            if (targetRadius <= 10) { // Adjusted threshold for stopping
+                clearInterval(shrinkInterval); // Stop shrinking when targetRadius reaches 10
+            }
+        }, 25); // Adjust the interval for faster transition
+    }
+
+    function updateChancesDisplay() {
+        chancesElement.innerHTML = ''; // Clear existing hearts
+        for (let i = 0; i < chancesLeft; i++) {
+            chancesElement.innerHTML += '&hearts;'; // Add hearts based on remaining chances
+        }
+    }
+
+    startButton.addEventListener('click', startGame);
+
+    canvas.addEventListener('mousemove', function(event) {
+        if (!isShot) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            angle = Math.atan2(mouseY - ballY, mouseX - ballX) * (180 / Math.PI);
+        }
+    });
+
+    canvas.addEventListener('click', function(event) {
+        if (!isShot) {
+            isShot = true;
+        }
+    });
+
+    canvas.addEventListener('touchmove', function(event) {
+        event.preventDefault();
+        if (!isShot && event.touches.length === 1) {
+            const rect = canvas.getBoundingClientRect();
+            const touchX = event.touches[0].clientX - rect.left;
+            const touchY = event.touches[0].clientY - rect.top;
+            angle = Math.atan2(touchY - ballY, touchX - ballX) * (180 / Math.PI);
+        }
+    });
+
+    canvas.addEventListener('touchstart', function(event) {
+        event.preventDefault();
+        if (!isShot && event.touches.length === 1) {
+            isShot = true;
+        }
+    });
+
+    window.addEventListener('resize', function() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
+</body>
+</html>
